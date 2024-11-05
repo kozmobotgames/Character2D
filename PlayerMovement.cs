@@ -17,13 +17,25 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField]
     private LayerMask groundLayers;
 
+    public Transform groundCheck;
+
+    public bool isGrounded;
+
     [SerializeField]
     private float moveSpeed = 300f;
 
     [SerializeField]
     private float jumpSpeed = 6f;
 
+    public bool canDoubleJump;
+
     private enum StateAnimation { idle, run, jump, falling }
+
+    [SerializeField]
+    private float fallingThreshold;
+
+    //the respawn position of the player
+    public Vector3 respawnPosition;
 
     void Awake()
     {
@@ -35,7 +47,7 @@ public class PlayerMovement : MonoBehaviour
             direction = ctx.ReadValue<float>();
         };
 
-        controls.Land.Jump.performed += ctx => Jump();
+        controls.Land.Jump.performed += ctx => OnJump();
     }
 
     // Start is called before the first frame update
@@ -50,6 +62,14 @@ public class PlayerMovement : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+
+        isGrounded = Physics2D.OverlapCircle(groundCheck.position, 3f, groundLayers);
+
+        if (isGrounded && rb.velocity.y <= 0.01f)
+        {
+            canDoubleJump = true;
+        }
+
         //direction = Input.GetAxisRaw("Horizontal");
         /*if (Input.GetButtonDown("Jump") && IsGrounded())
         {
@@ -89,27 +109,42 @@ public class PlayerMovement : MonoBehaviour
         }
 
         anim.SetInteger("state", (int)state);
+
+        if (transform.position.y < fallingThreshold)
+        {
+            transform.position = new Vector3(respawnPosition.x, respawnPosition.y, respawnPosition.z);
+            GameManager.lives -= 1;
+            Debug.Log(GameManager.lives + " lives left!");
+        }
+
+    }
+
+    void OnJump()
+    {
+        if (isGrounded)
+        {
+            Jump();
+        }
+        else if (canDoubleJump)
+        {
+            Jump();
+            canDoubleJump = false;
+        }
     }
 
     void Jump()
     {
-        if (IsGrounded())
-        {
-            rb.velocity = new Vector2(rb.velocity.x, jumpSpeed);
-        }
-    }
-
-    bool IsGrounded()
-    {
-        return Physics2D.BoxCast(coll.bounds.center, coll.bounds.size, 0f, Vector2.down, .1f, groundLayers);
+        rb.velocity = new Vector2(rb.velocity.x, jumpSpeed);
     }
 
     private void OnEnable()
     {
         controls.Enable();
     }
+
     private void OnDisable()
     {
         controls.Disable();
     }
+
 }
